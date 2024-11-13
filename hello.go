@@ -1,55 +1,57 @@
 package main
 
 import (
-	
+	"bytes"
+	"encoding/json"
 	"fmt"
-	
+	"io"
+	"log"
+	"net/http"
 )
 
 type FormData struct {
-    NumOfUsers             int     `json:"num_of_users"`
-    PackagePrice           float64 `json:"package_price"`
-    SponsorBonusPercentage int     `json:"sponsor_bonus_percentage"`
-    BinaryBonusPercentage  int     `json:"binary_bonus_percentage"`
-    Lev1Percentage         int     `json:"lev1_percentage"`
-    Lev2Percentage         int     `json:"lev2_percentage"`
-    CappingScope           string  `json:"capping_scope"`
-    CappingAmount          int     `json:"capping_amount"`
-    CarryYesNo             string  `json:"carry_yes_no"`
+	NumOfUsers             int     `json:"num_of_users"`
+	PackagePrice           float64 `json:"package_price"`
+	SponsorBonusPercentage int     `json:"sponsor_bonus_percentage"`
+	BinaryBonusPercentage  int     `json:"binary_bonus_percentage"`
+	Lev1Percentage         float64 `json:"lev1_percentage"`
+	Lev2Percentage         float64 `json:"lev2_percentage"`
+	CappingScope           string  `json:"capping_scope"`
+	CappingAmount          int     `json:"capping_amount"`
+	CarryYesNo             string  `json:"carry_yes_no"`
 }
 
 type Member struct {
-	ID            int
-	Parent        *Member
-	LeftMember    *Member
-	RightMember   *Member
-	Position      string
-	Level         int
-	Sale          float64
-	SponsorBonus  float64
-	BinaryBonus   float64
-	LeftSales     float64
-	RightSales    float64
-	CarryForward  float64
-	MatchingBonus float64
+	ID                   int
+	Parent               *Member
+	LeftMember           *Member
+	RightMember          *Member
+	Position             string
+	Level                int
+	Sale                 float64
+	SponsorBonus         float64
+	BinaryBonus          float64
+	LeftSales            float64
+	RightSales           float64
+	CarryForward         float64
+	CarryForwardPosition string
+	MatchingBonus        float64
 }
 
 type Tree struct {
-	Root                   *Member
-	NumMembers             int
-	PackagePrice           float64
-	AdditionalProductPrice float64
-	Members                []*Member
+	Root         *Member
+	NumMembers   int
+	PackagePrice float64
+	Members      []*Member
 }
 
-func NewTree(numMembers int, packagePrice, additionalProductPrice float64) *Tree {
+func NewTree(numMembers int, packagePrice float64) *Tree {
 	tree := &Tree{
-		NumMembers:             numMembers,
-		PackagePrice:           packagePrice,
-		AdditionalProductPrice: additionalProductPrice,
+		NumMembers:   numMembers,
+		PackagePrice: packagePrice,
 	}
 	tree.buildTree()
-	tree.setMemberSales(packagePrice, additionalProductPrice)
+	tree.setMemberSales(packagePrice)
 	return tree
 }
 
@@ -82,10 +84,10 @@ func (t *Tree) buildTree() {
 	}
 }
 
-func (t *Tree) setMemberSales(packagePrice, additionalProductPrice float64) {
+func (t *Tree) setMemberSales(packagePrice float64) {
 	for _, member := range t.Members {
 		if member.ID != 1 {
-			member.Sale = packagePrice + additionalProductPrice
+			member.Sale = packagePrice
 		}
 	}
 }
@@ -140,15 +142,15 @@ func (t *Tree) setBinaryBonus(binaryPercentage, cappingAmount float64) float64 {
 			member.BinaryBonus = binaryBonus
 		}
 
-		// Calculate carry forward
 		carryForward := leftSales - rightSales
 		if member.LeftMember != nil && carryForward > 0 {
-			member.LeftMember.CarryForward = carryForward
+			member.CarryForward = carryForward
+			member.CarryForwardPosition = "Left"
 		} else if member.RightMember != nil && carryForward < 0 {
-			member.RightMember.CarryForward = -carryForward
+			member.CarryForward = -carryForward
+			member.CarryForwardPosition = "Right"
 		}
 
-		// Add the member's binary bonus to the total bonus
 		totalBonus += member.BinaryBonus
 	}
 	return totalBonus
@@ -170,18 +172,58 @@ func (t *Tree) traverse(node *Member) float64 {
 }
 
 // Calculate Matching Bonus
-func (t *Tree) setMatchingBonus(matchingPercentage float64) float64 {
+func (t *Tree) setMatchingBonus(Lev1Percentage float64, Lev2Percentage float64) float64 {
 	var totalMatchingBonus float64
 	for _, member := range t.Members {
-		if member.LeftMember != nil {
-			member.MatchingBonus += member.LeftMember.BinaryBonus * (matchingPercentage / 100)
+
+		if member.LeftMember != nil && member.RightMember != nil {
+			member.MatchingBonus += member.LeftMember.BinaryBonus * (Lev1Percentage / 100)
+			member.MatchingBonus += member.RightMember.BinaryBonus * (Lev1Percentage / 100)
 		}
-		if member.RightMember != nil {
-			member.MatchingBonus += member.RightMember.BinaryBonus * (matchingPercentage / 100)
+		if member.LeftMember.LeftMember != nil && member.LeftMember.RightMember != nil {
+			member.MatchingBonus += member.LeftMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
+			member.MatchingBonus += member.LeftMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
 		}
+		if member.RightMember.LeftMember != nil && member.RightMember.RightMember != nil {
+			member.MatchingBonus += member.RightMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
+			member.MatchingBonus += member.RightMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
+		}
+		// if member.LeftMember != nil {
+		// 	member.MatchingBonus += member.LeftMember.BinaryBonus * (matchingPercentage / 100)
+		// }
+		// if member.RightMember != nil {
+		// 	member.MatchingBonus += member.RightMember.BinaryBonus * (matchingPercentage / 100)
+		// }
+		fmt.Println("Curr Matching:",member.MatchingBonus)
 		totalMatchingBonus += member.MatchingBonus
 	}
+	fmt.Println("Idhu Total:",totalMatchingBonus)
 	return totalMatchingBonus
+}
+
+func convertToJSONStructure(members []*Member) []map[string]interface{} {
+	var jsonNodes []map[string]interface{}
+	for _, member := range members {
+		parentID := 0
+		if member.Parent != nil {
+			parentID = member.Parent.ID
+		}
+
+		jsonNodes = append(jsonNodes, map[string]interface{}{
+			"ID":                   member.ID,
+			"Position":             member.Position,
+			"Level":                member.Level,
+			"LeftSales":            member.LeftSales,
+			"RightSales":           member.RightSales,
+			"SponsorBonus":         member.SponsorBonus,
+			"BinaryBonus":          member.BinaryBonus,
+			"MatchingBonus":        member.MatchingBonus,
+			"ParentID":             parentID,
+			"CarryForward":         member.CarryForward,
+			"CarryForwardPosition": member.CarryForwardPosition,
+		})
+	}
+	return jsonNodes
 }
 
 func (t *Tree) DisplayTree() {
@@ -201,23 +243,77 @@ func (t *Tree) DisplayTree() {
 	}
 }
 
+func sendResultsToDjango(results interface{}) {
+	jsonData, err := json.Marshal(results)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err := http.Post("http://localhost:8000/process_results/", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	fmt.Println("Response from Django:", resp.Status)
+}
+
+func processData(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+	fmt.Println("Request Body:", string(body))
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	// Accessing data with type assertions
+	numOfUsers := int(data["num_of_users"].(float64))
+	packagePrice := data["package_price"].(float64)
+	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
+	binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
+	lev1Percentage := data["lev1_percentage"].(float64)
+	lev2Percentage := data["lev2_percentage"].(float64)
+	cappingScope := data["capping_scope"].(string)
+	cappingAmount := data["capping_amount"].(float64)
+	//carryYesNo := data["carry_yes_no"].(string)
+
+	tree := NewTree(numOfUsers, packagePrice)
+	sponsorBonus := tree.setAndGetSponsorBonus(float64(sponsorBonusPercentage), float64(cappingAmount), cappingScope)
+	fmt.Println("Sponsor Bonus", sponsorBonus)
+	totalBinaryBonus := tree.setBinaryBonus(float64(binaryBonusPercentage), float64(cappingAmount))
+	fmt.Println("Binary Bonus", totalBinaryBonus)
+	totalMatchingBonus := tree.setMatchingBonus(float64(lev1Percentage), float64(lev2Percentage))
+	fmt.Println("Matching Bonus", totalMatchingBonus)
+
+	fmt.Printf("Sponsor Bonus: %.2f", sponsorBonus)
+	fmt.Printf("Binary Bonus: %.2f", totalBinaryBonus)
+
+	results := map[string]interface{}{
+		"tree_structure":       convertToJSONStructure(tree.Members),
+		"total_sponsor_bonus":  sponsorBonus,
+		"total_binary_bonus":   totalBinaryBonus,
+		"total_matching_bonus": totalMatchingBonus,
+	}
+	fmt.Println(results)
+	sendResultsToDjango(results)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(results); err != nil {
+		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+	}
+}
+
 func main() {
-	numMembers := 1000000
-	packagePrice := 1000.0
-	additionalProductPrice := 0.0
-	sponsorPercentage := 10.0
-	cappingAmount := 0.0
-	cappingScope := "3"
-	binaryPercentage := 10.0
-	matchingPercentage := 2.0
-
-	tree := NewTree(numMembers, packagePrice, additionalProductPrice)
-	sponsorBonus := tree.setAndGetSponsorBonus(sponsorPercentage, cappingAmount, cappingScope)
-	totalBinaryBonus := tree.setBinaryBonus(binaryPercentage, cappingAmount)
-	totalMatchingBonus := tree.setMatchingBonus(matchingPercentage)
-
-	tree.DisplayTree()
-	fmt.Printf("Total Sponsor Bonus: %.2f\n", sponsorBonus)
-	fmt.Printf("Total Binary Bonus: %.2f\n", totalBinaryBonus)
-	fmt.Printf("Total Matching Bonus: %.2f\n", totalMatchingBonus)
+	http.HandleFunc("/api/processData", processData)
+	fmt.Println("Go server is listening on port 8080...")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
