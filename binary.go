@@ -1,15 +1,14 @@
+// binary.go
 package main
-
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 )
 
-type FormData struct {
+type BinaryFormData struct {
 	NumOfUsers             int     `json:"num_of_users"`
 	PackagePrice           float64 `json:"package_price"`
 	SponsorBonusPercentage int     `json:"sponsor_bonus_percentage"`
@@ -179,25 +178,19 @@ func (t *Tree) setMatchingBonus(Lev1Percentage float64, Lev2Percentage float64) 
 		if member.LeftMember != nil && member.RightMember != nil {
 			member.MatchingBonus += member.LeftMember.BinaryBonus * (Lev1Percentage / 100)
 			member.MatchingBonus += member.RightMember.BinaryBonus * (Lev1Percentage / 100)
+			if member.LeftMember.LeftMember != nil && member.LeftMember.RightMember != nil {
+				member.MatchingBonus += member.LeftMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
+				member.MatchingBonus += member.LeftMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
+	
+			}
+			if member.RightMember.LeftMember != nil && member.RightMember.RightMember != nil {
+				member.MatchingBonus += member.RightMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
+				member.MatchingBonus += member.RightMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
+			}
 		}
-		if member.LeftMember.LeftMember != nil && member.LeftMember.RightMember != nil {
-			member.MatchingBonus += member.LeftMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
-			member.MatchingBonus += member.LeftMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
-		}
-		if member.RightMember.LeftMember != nil && member.RightMember.RightMember != nil {
-			member.MatchingBonus += member.RightMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
-			member.MatchingBonus += member.RightMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
-		}
-		// if member.LeftMember != nil {
-		// 	member.MatchingBonus += member.LeftMember.BinaryBonus * (matchingPercentage / 100)
-		// }
-		// if member.RightMember != nil {
-		// 	member.MatchingBonus += member.RightMember.BinaryBonus * (matchingPercentage / 100)
-		// }
-		fmt.Println("Curr Matching:",member.MatchingBonus)
+		
 		totalMatchingBonus += member.MatchingBonus
 	}
-	fmt.Println("Idhu Total:",totalMatchingBonus)
 	return totalMatchingBonus
 }
 
@@ -231,8 +224,8 @@ func (t *Tree) DisplayTree() {
 	for len(queue) > 0 {
 		currentMember := queue[0]
 		queue = queue[1:]
-		fmt.Printf("Member ID: %d, Sponsor Bonus: %.2f, Binary Bonus: %.2f, Matching Bonus: %.2f\n",
-			currentMember.ID, currentMember.SponsorBonus, currentMember.BinaryBonus, currentMember.MatchingBonus)
+		// fmt.Printf("Member ID: %d, Sponsor Bonus: %.2f, Binary Bonus: %.2f, Matching Bonus: %.2f\n",
+		// 	currentMember.ID, currentMember.SponsorBonus, currentMember.BinaryBonus, currentMember.MatchingBonus)
 
 		if currentMember.LeftMember != nil {
 			queue = append(queue, currentMember.LeftMember)
@@ -257,25 +250,8 @@ func sendResultsToDjango(results interface{}) {
 	fmt.Println("Response from Django:", resp.Status)
 }
 
-func processData(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-		return
-	}
-	defer r.Body.Close()
-	fmt.Println("Request Body:", string(body))
-	var data map[string]interface{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-	// Accessing data with type assertions
+func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64))
 	packagePrice := data["package_price"].(float64)
 	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
@@ -284,36 +260,16 @@ func processData(w http.ResponseWriter, r *http.Request) {
 	lev2Percentage := data["lev2_percentage"].(float64)
 	cappingScope := data["capping_scope"].(string)
 	cappingAmount := data["capping_amount"].(float64)
-	//carryYesNo := data["carry_yes_no"].(string)
 
 	tree := NewTree(numOfUsers, packagePrice)
-	sponsorBonus := tree.setAndGetSponsorBonus(float64(sponsorBonusPercentage), float64(cappingAmount), cappingScope)
-	fmt.Println("Sponsor Bonus", sponsorBonus)
-	totalBinaryBonus := tree.setBinaryBonus(float64(binaryBonusPercentage), float64(cappingAmount))
-	fmt.Println("Binary Bonus", totalBinaryBonus)
-	totalMatchingBonus := tree.setMatchingBonus(float64(lev1Percentage), float64(lev2Percentage))
-	fmt.Println("Matching Bonus", totalMatchingBonus)
+	sponsorBonus := tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
+	totalBinaryBonus := tree.setBinaryBonus(binaryBonusPercentage, cappingAmount)
+	totalMatchingBonus := tree.setMatchingBonus(lev1Percentage, lev2Percentage)
 
-	fmt.Printf("Sponsor Bonus: %.2f", sponsorBonus)
-	fmt.Printf("Binary Bonus: %.2f", totalBinaryBonus)
-
-	results := map[string]interface{}{
+	return map[string]interface{}{
 		"tree_structure":       convertToJSONStructure(tree.Members),
 		"total_sponsor_bonus":  sponsorBonus,
 		"total_binary_bonus":   totalBinaryBonus,
 		"total_matching_bonus": totalMatchingBonus,
 	}
-	fmt.Println(results)
-	sendResultsToDjango(results)
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(results); err != nil {
-		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
-	}
-}
-
-func main() {
-	http.HandleFunc("/api/processData", processData)
-	fmt.Println("Go server is listening on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }
