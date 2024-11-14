@@ -182,14 +182,14 @@
 // 			if member.LeftMember.LeftMember != nil && member.LeftMember.RightMember != nil {
 // 				member.MatchingBonus += member.LeftMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
 // 				member.MatchingBonus += member.LeftMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
-	
+
 // 			}
 // 			if member.RightMember.LeftMember != nil && member.RightMember.RightMember != nil {
 // 				member.MatchingBonus += member.RightMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
 // 				member.MatchingBonus += member.RightMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
 // 			}
 // 		}
-		
+
 // 		totalMatchingBonus += member.MatchingBonus
 // 	}
 // 	return totalMatchingBonus
@@ -306,9 +306,6 @@
 // 	log.Fatal(http.ListenAndServe(":8080", nil))
 // }
 
-
-
-
 // main.go
 package main
 
@@ -341,6 +338,7 @@ func processData(w http.ResponseWriter, r *http.Request) {
 
 	// Check the plan type to determine which processing function to call
 	planType := data["plan_type"].(string)
+	fmt.Println("this is plan:", planType)
 	var results map[string]interface{}
 	if planType == "binary" {
 		results = ProcessBinaryTree(data)

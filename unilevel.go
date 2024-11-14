@@ -13,10 +13,10 @@ type UnilevelFormData struct {
 }
 
 type UniMember struct {
-	ID                   int
-	Parent               *UniMember
-	Children             []*UniMember
-	Level                int
+	ID       int
+	Parent   *UniMember
+	Children []*UniMember
+	Level    int
 	// Sale                 float64
 	// SponsorBonus         float64
 	// BinaryBonus          float64
@@ -36,7 +36,7 @@ type UniLevelTree struct {
 
 func NewUniLevelTree(numMembers int) *UniLevelTree {
 	tree := &UniLevelTree{
-		NumMembers:   numMembers,
+		NumMembers: numMembers,
 	}
 	tree.buildUniLevelTree()
 	// tree.setMemberSales(packagePrice)
@@ -54,32 +54,39 @@ func (t *UniLevelTree) buildUniLevelTree() {
 	maxChild := 4
 
 	for currentID <= t.NumMembers {
-		
-	}
-
-	for currentID <= t.NumMembers {
 		currentMember := queue[0]
-		queue = queue[1:]
-		if currentID <= t.NumMembers {
-			leftChild := &Member{ID: currentID, Parent: currentMember, Position: "Left", Level: currentMember.Level + 1}
-			currentMember.LeftMember = leftChild
-			queue = append(queue, leftChild)
-			t.Members = append(t.Members, leftChild)
+		if len(currentMember.Children) != maxChild {
+			newChild := &UniMember{ID: currentID, Parent: currentMember, Level: currentMember.Level + 1}
+			currentMember.Children = append(currentMember.Children, newChild)
+			queue = append(queue, newChild)
+			t.Members = append(t.Members, newChild)
 			currentID++
-		}
-		if currentID <= t.NumMembers {
-			rightChild := &Member{ID: currentID, Parent: currentMember, Position: "Right", Level: currentMember.Level + 1}
-			currentMember.RightMember = rightChild
-			queue = append(queue, rightChild)
-			t.Members = append(t.Members, rightChild)
-			currentID++
+		} else {
+			queue = queue[1:]
 		}
 	}
 }
 
+func convertToUniLevelJSONStructure(members []*UniMember) []map[string]interface{} {
+	var jsonNodes []map[string]interface{}
+	for _, member := range members {
+		parentID := 0
+		if member.Parent != nil {
+			parentID = member.Parent.ID
+		}
+
+		jsonNodes = append(jsonNodes, map[string]interface{}{
+			"ID":       member.ID,
+			"Level":    member.Level,
+			"ParentID": parentID,
+		})
+	}
+	return jsonNodes
+}
+
 func ProcessUnilevelTree(data map[string]interface{}) map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64))
-	packagePrice := data["package_price"].(float64)
+	// packagePrice := data["package_price"].(float64)
 	// sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
 	// binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
 	// lev1Percentage := data["lev1_percentage"].(float64)
@@ -87,13 +94,13 @@ func ProcessUnilevelTree(data map[string]interface{}) map[string]interface{} {
 	// cappingScope := data["capping_scope"].(string)
 	// cappingAmount := data["capping_amount"].(float64)
 
-	tree := NewTree(numOfUsers, packagePrice)
+	tree := NewUniLevelTree(numOfUsers)
 	// sponsorBonus := tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
 	// totalBinaryBonus := tree.setBinaryBonus(binaryBonusPercentage, cappingAmount)
 	// totalMatchingBonus := tree.setMatchingBonus(lev1Percentage, lev2Percentage)
 
 	return map[string]interface{}{
-		"tree_structure":       convertToJSONStructure(tree.Members),
+		"tree_structure": convertToUniLevelJSONStructure(tree.Members),
 		// "total_sponsor_bonus":  sponsorBonus,
 		// "total_binary_bonus":   totalBinaryBonus,
 		// "total_matching_bonus": totalMatchingBonus,
