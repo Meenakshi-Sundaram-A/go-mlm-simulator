@@ -79,7 +79,6 @@ func (t *Tree) setMemberSales(packagePrice float64) {
 	}
 }
 
-// Calculate Sponsor Bonus
 func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, cappingScope string) float64 {
 	var totalBonus float64
 	for _, member := range t.Members {
