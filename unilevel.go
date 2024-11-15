@@ -88,6 +88,7 @@ func ProcessUnilevelTree(data map[string]interface{}) map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64))
 	// packagePrice := data["package_price"].(float64)
 	// sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
+	// maxChild := data["max_child"].(int32)
 	// binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
 	// lev1Percentage := data["lev1_percentage"].(float64)
 	// lev2Percentage := data["lev2_percentage"].(float64)

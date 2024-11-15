@@ -8,18 +8,6 @@ import (
 	"net/http"
 )
 
-type BinaryFormData struct {
-	NumOfUsers             int     `json:"num_of_users"`
-	PackagePrice           float64 `json:"package_price"`
-	SponsorBonusPercentage int     `json:"sponsor_bonus_percentage"`
-	BinaryBonusPercentage  int     `json:"binary_bonus_percentage"`
-	Lev1Percentage         float64 `json:"lev1_percentage"`
-	Lev2Percentage         float64 `json:"lev2_percentage"`
-	CappingScope           string  `json:"capping_scope"`
-	CappingAmount          int     `json:"capping_amount"`
-	CarryYesNo             string  `json:"carry_yes_no"`
-}
-
 type Member struct {
 	ID                   int
 	Parent               *Member
