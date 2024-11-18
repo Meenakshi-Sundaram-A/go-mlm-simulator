@@ -255,13 +255,10 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	matchingBonusPercentages := []float64{}
 
 	if rawPercentages, ok := data["percentage_string"].([]interface{}); ok {
-		// Convert []interface{} to []float64
 		for _, val := range rawPercentages {
 			matchingBonusPercentages = append(matchingBonusPercentages, val.(float64))
 		}
 	}
-
-	fmt.Print(matchingBonusPercentages)
 
 	cappingScope := data["capping_scope"].(string)
 	cappingAmount := data["capping_amount"].(float64)

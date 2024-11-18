@@ -1,17 +1,17 @@
 package main
 
 type UniMember struct {
-	ID           int
-	Parent       *UniMember
-	Children     []*UniMember
-	Level        int
-	Sale         float64
-	SponsorBonus float64
+	ID            int
+	Parent        *UniMember
+	Children      []*UniMember
+	Level         int
+	Sale          float64
+	SponsorBonus  float64
+	MatchingBonus float64
 	// BinaryBonus          float64
 	// DownlineSales        float64
 	// CarryForward         float64
 	// CarryForwardPosition string
-	// MatchingBonus        float64
 }
 
 type UniLevelTree struct {
@@ -79,6 +79,27 @@ func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, packagePr
 	return totalSponsorBonus
 }
 
+func (t *UniLevelTree) unilevelMatchingBonus(levelPercentages []float64) float64 {
+	totalMatchingBonus := 0.0
+
+	for _, member := range t.Members {
+		queue := []*UniMember{member}
+		for _, level := range levelPercentages {
+			nextLevelNodes := []*UniMember{}
+
+			for _, node := range queue {
+				for _, child := range node.Children {
+					nextLevelNodes = append(nextLevelNodes, child)
+					member.MatchingBonus += child.SponsorBonus * (level / 100)
+				}
+			}
+			queue = nextLevelNodes
+		}
+		totalMatchingBonus += member.MatchingBonus
+	}
+	return totalMatchingBonus
+}
+
 // func sendResultsToDjango(results interface{}) {
 // 	jsonData, err := json.Marshal(results)
 // 	if err != nil {
@@ -102,10 +123,11 @@ func convertToUniLevelJSONStructure(members []*UniMember) []map[string]interface
 		}
 
 		jsonNodes = append(jsonNodes, map[string]interface{}{
-			"ID":           member.ID,
-			"Level":        member.Level,
-			"ParentID":     parentID,
-			"SponsorBonus": member.SponsorBonus,
+			"ID":            member.ID,
+			"Level":         member.Level,
+			"ParentID":      parentID,
+			"SponsorBonus":  member.SponsorBonus,
+			"MatchingBonus": member.MatchingBonus,
 		})
 	}
 	return jsonNodes
@@ -115,22 +137,23 @@ func ProcessUnilevelTree(data map[string]interface{}) map[string]interface{} {
 	numOfUsers := data["num_of_users"].(float64)
 	packagePrice := data["package_price"].(float64)
 	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
+	matchingBonusPercentages := []float64{}
+	if rawPercentages, ok := data["percentage_string"].([]interface{}); ok {
+		for _, val := range rawPercentages {
+			matchingBonusPercentages = append(matchingBonusPercentages, val.(float64))
+		}
+	}
 	maxChild := data["max_child"].(float64)
 	cappingAmount := data["capping_amount"].(float64)
 
-	// cappingScope := data["capping_scope"].(string)
-	// lev1Percentage := data["lev1_percentage"].(float64)
-	// lev2Percentage := data["lev2_percentage"].(float64)
-
 	tree := NewUniLevelTree(int(numOfUsers), packagePrice, int(maxChild))
 	sponsorBonus := tree.unilevelSponsorBonus(sponsorBonusPercentage, packagePrice, cappingAmount)
-	// totalBinaryBonus := tree.setBinaryBonus(binaryBonusPercentage, cappingAmount)
-	// totalMatchingBonus := tree.setMatchingBonus(lev1Percentage, lev2Percentage)
+	totalMatchingBonus := tree.unilevelMatchingBonus(matchingBonusPercentages)
 
 	return map[string]interface{}{
-		"tree_structure":      convertToUniLevelJSONStructure(tree.Members),
-		"total_sponsor_bonus": sponsorBonus,
+		"tree_structure":       convertToUniLevelJSONStructure(tree.Members),
+		"total_sponsor_bonus":  sponsorBonus,
+		"total_matching_bonus": totalMatchingBonus,
 		// "total_binary_bonus":   totalBinaryBonus,
-		// "total_matching_bonus": totalMatchingBonus,
 	}
 }
