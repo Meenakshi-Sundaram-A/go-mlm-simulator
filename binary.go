@@ -1,5 +1,6 @@
 // binary.go
 package main
+
 import (
 	"bytes"
 	"encoding/json"
@@ -157,29 +158,38 @@ func (t *Tree) traverse(node *Member) float64 {
 	return currentSales + leftSales + rightSales
 }
 
-// Calculate Matching Bonus
-func (t *Tree) setMatchingBonus(Lev1Percentage float64, Lev2Percentage float64) float64 {
-	var totalMatchingBonus float64
-	for _, member := range t.Members {
+func (t *Tree) setMatchingBonus(levelPercentages []float64) float64 {
+	totalMatchingBonus := 0.0
 
-		if member.LeftMember != nil && member.RightMember != nil {
-			member.MatchingBonus += member.LeftMember.BinaryBonus * (Lev1Percentage / 100)
-			member.MatchingBonus += member.RightMember.BinaryBonus * (Lev1Percentage / 100)
-			if member.LeftMember.LeftMember != nil && member.LeftMember.RightMember != nil {
-				member.MatchingBonus += member.LeftMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
-				member.MatchingBonus += member.LeftMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
-	
+	for _, member := range t.Members {
+		member.MatchingBonus = 0.0
+		queue := []*Member{member}
+
+		for _, percentage := range levelPercentages {
+			nextLevelNodes := []*Member{}
+
+			for _, node := range queue {
+				if node.LeftMember != nil {
+					member.MatchingBonus += node.LeftMember.BinaryBonus * (percentage / 100)
+					nextLevelNodes = append(nextLevelNodes, node.LeftMember)
+				}
+				if node.RightMember != nil {
+					member.MatchingBonus += node.RightMember.BinaryBonus * (percentage / 100)
+					nextLevelNodes = append(nextLevelNodes, node.RightMember)
+				}
 			}
-			if member.RightMember.LeftMember != nil && member.RightMember.RightMember != nil {
-				member.MatchingBonus += member.RightMember.LeftMember.BinaryBonus * (Lev2Percentage / 100)
-				member.MatchingBonus += member.RightMember.RightMember.BinaryBonus * (Lev2Percentage / 100)
+			queue = nextLevelNodes
+
+			if len(queue) == 0 {
+				break
 			}
 		}
-		
+		print(member.MatchingBonus)
 		totalMatchingBonus += member.MatchingBonus
 	}
 	return totalMatchingBonus
 }
+
 
 func convertToJSONStructure(members []*Member) []map[string]interface{} {
 	var jsonNodes []map[string]interface{}
@@ -237,21 +247,29 @@ func sendResultsToDjango(results interface{}) {
 	fmt.Println("Response from Django:", resp.Status)
 }
 
-
 func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64))
 	packagePrice := data["package_price"].(float64)
 	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
 	binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
-	lev1Percentage := data["lev1_percentage"].(float64)
-	lev2Percentage := data["lev2_percentage"].(float64)
+	matchingBonusPercentages := []float64{}
+
+	if rawPercentages, ok := data["percentage_string"].([]interface{}); ok {
+		// Convert []interface{} to []float64
+		for _, val := range rawPercentages {
+			matchingBonusPercentages = append(matchingBonusPercentages, val.(float64))
+		}
+	}
+
+	fmt.Print(matchingBonusPercentages)
+
 	cappingScope := data["capping_scope"].(string)
 	cappingAmount := data["capping_amount"].(float64)
 
 	tree := NewTree(numOfUsers, packagePrice)
 	sponsorBonus := tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
 	totalBinaryBonus := tree.setBinaryBonus(binaryBonusPercentage, cappingAmount)
-	totalMatchingBonus := tree.setMatchingBonus(lev1Percentage, lev2Percentage)
+	totalMatchingBonus := tree.setMatchingBonus(matchingBonusPercentages)
 
 	return map[string]interface{}{
 		"tree_structure":       convertToJSONStructure(tree.Members),
