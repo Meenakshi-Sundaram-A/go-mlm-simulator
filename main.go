@@ -338,7 +338,6 @@ func processData(w http.ResponseWriter, r *http.Request) {
 
 	// Check the plan type to determine which processing function to call
 	planType := data["plan_type"].(string)
-	fmt.Println("this is plan:", planType)
 	var results map[string]interface{}
 	if planType == "binary" {
 		results = ProcessBinaryTree(data)
