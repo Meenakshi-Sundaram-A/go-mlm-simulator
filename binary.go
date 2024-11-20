@@ -6,25 +6,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 )
 
 type Member struct {
-	ID                   int
-	Parent               *Member
-	LeftMember           *Member
-	RightMember          *Member
-	Position             string
-	Level                int
-	PackagePrice         float64
-	Sale                 float64
-	SponsorBonus         float64
-	BinaryBonus          float64
-	MatchingBonus        float64
-	LeftSales            float64
-	RightSales           float64
-	CarryForward         float64
-	CarryForwardPosition string
+	ID            int
+	Parent        *Member
+	LeftMember    *Member
+	RightMember   *Member
+	Position      string
+	Level         int
+	PackagePrice  float64
+	Sale          float64
+	SponsorBonus  float64
+	BinaryBonus   float64
+	MatchingBonus float64
+	LeftSales     float64
+	RightSales    float64
+	LeftCarry     float64
+	RightCarry    float64
+	//CarryForwardPosition string
 }
 
 type Tree struct {
@@ -58,9 +60,6 @@ func (t *Tree) buildTree(productsPrice []float64, usersPerProduct []float64, que
 		return queue
 	}
 	totalUsersPerCycle := sumSlice(usersPerProduct)
-	// if len(queue) == 0 {
-	// 	return queue // Avoid accessing an empty queue
-	// }
 	currId := queue[len(queue)-1].ID + 1
 
 	for currId <= t.NumMembers && currCount < int(totalUsersPerCycle) {
@@ -106,43 +105,6 @@ func (t *Tree) buildTree(productsPrice []float64, usersPerProduct []float64, que
 	return queue
 }
 
-// func (t *Tree) buildTree() {
-// 	if t.NumMembers <= 0 {
-// 		return
-// 	}
-// 	t.Root = &Member{ID: 1, Level: 1}
-// 	t.Members = append(t.Members, t.Root)
-// 	queue := []*Member{t.Root}
-// 	currentID := 2
-
-// 	for currentID <= t.NumMembers {
-// 		currentMember := queue[0]
-// 		queue = queue[1:]
-// 		if currentID <= t.NumMembers {
-// 			leftChild := &Member{ID: currentID, Parent: currentMember, Position: "Left", Level: currentMember.Level + 1}
-// 			currentMember.LeftMember = leftChild
-// 			queue = append(queue, leftChild)
-// 			t.Members = append(t.Members, leftChild)
-// 			currentID++
-// 		}
-// 		if currentID <= t.NumMembers {
-// 			rightChild := &Member{ID: currentID, Parent: currentMember, Position: "Right", Level: currentMember.Level + 1}
-// 			currentMember.RightMember = rightChild
-// 			queue = append(queue, rightChild)
-// 			t.Members = append(t.Members, rightChild)
-// 			currentID++
-// 		}
-// 	}
-// }
-
-// func (t *Tree) setMemberSales(packagePrice float64) {
-// 	for _, member := range t.Members {
-// 		if member.ID != 1 {
-// 			member.Sale = packagePrice
-// 		}
-// 	}
-// }
-
 func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, cappingScope string) float64 {
 	var totalBonus float64
 	for _, member := range t.Members {
@@ -165,53 +127,65 @@ func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, c
 }
 
 // Calculate Binary Bonus
-func (t *Tree) setBinaryBonus(binaryPercentage, cappingAmount float64) float64 {
+func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, rightRatioAmount float64) float64 {
 	totalBonus := 0.0
 	for _, member := range t.Members {
 		leftSales := 0.0
 		rightSales := 0.0
 		if member.LeftMember != nil {
 			leftSales = t.traverse(member.LeftMember)
-			if member.CarryForward > 0.0 && member.CarryForwardPosition == "Left" {
-				leftSales += member.CarryForward
-				member.CarryForward = 0.0
-				member.CarryForwardPosition = ""
+			if member.LeftCarry > 0.0 {
+				leftSales += member.LeftCarry
+				member.LeftCarry = 0.0
 			}
 			member.LeftSales = leftSales
 		}
 		if member.RightMember != nil {
 			rightSales = t.traverse(member.RightMember)
-			if member.CarryForward > 0.0 && member.CarryForwardPosition == "Right" {
-				rightSales += member.CarryForward
-				member.CarryForward = 0.0
-				member.CarryForwardPosition = ""
+			if member.RightCarry > 0.0 {
+				rightSales += member.RightCarry
+				member.RightCarry = 0.0
 			}
 			member.RightSales = rightSales
 		}
 
-		fmt.Print("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
+		//fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
 
-		weakerSideSales := leftSales
-		if rightSales < leftSales {
-			weakerSideSales = rightSales
+		pairCount := int(math.Min((leftSales / leftRatioAmount), (rightSales / rightRatioAmount)))
+		fmt.Println("Pair:", pairCount)
+		leftVal := float64(pairCount) * leftRatioAmount
+		fmt.Println("Left Val:", leftVal)
+		rightVal := float64(pairCount) * rightRatioAmount
+		fmt.Println("Right Val:", rightVal)
+		minValue := math.Min(leftVal, rightVal)
+		fmt.Println("Min Val:", minValue)
+
+		if pairCount <= 5 {
+			binaryBonus := minValue * (10.0 / 100)
+			if cappingAmount > 0 && binaryBonus > cappingAmount {
+				member.BinaryBonus = cappingAmount
+			} else {
+				member.BinaryBonus = binaryBonus
+			}
+		} else if pairCount > 5 && pairCount <= 10 {
+			binaryBonus := minValue * (15.0 / 100)
+			if cappingAmount > 0 && binaryBonus > cappingAmount {
+				member.BinaryBonus = cappingAmount
+			} else {
+				member.BinaryBonus = binaryBonus
+			}
+		} else if pairCount > 10 {
+			binaryBonus := minValue * (20.0 / 100)
+			if cappingAmount > 0 && binaryBonus > cappingAmount {
+				member.BinaryBonus = cappingAmount
+			} else {
+				member.BinaryBonus = binaryBonus
+			}
 		}
+		member.LeftCarry = leftSales - (float64(pairCount) * leftRatioAmount)
+		member.RightCarry = rightSales - (float64(pairCount) * rightRatioAmount)
 
-		binaryBonus := weakerSideSales * (binaryPercentage / 100)
-		if cappingAmount > 0 && binaryBonus > cappingAmount {
-			member.BinaryBonus = cappingAmount
-		} else {
-			member.BinaryBonus = binaryBonus
-		}
-
-		carryForward := leftSales - rightSales
-		if member.LeftMember != nil && carryForward > 0 {
-			member.CarryForward = carryForward
-			member.CarryForwardPosition = "Left"
-		} else if member.RightMember != nil && carryForward < 0 {
-			member.CarryForward = -carryForward
-			member.CarryForwardPosition = "Right"
-		}
-
+		fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
 		totalBonus += member.BinaryBonus
 	}
 	return totalBonus
@@ -223,9 +197,6 @@ func (t *Tree) traverse(node *Member) float64 {
 	}
 
 	currentSales := node.PackagePrice
-	// if node.Sale == 0 {
-	// 	currentSales = 0
-	// }
 
 	leftSales := t.traverse(node.LeftMember)
 	rightSales := t.traverse(node.RightMember)
@@ -258,7 +229,6 @@ func (t *Tree) setMatchingBonus(levelPercentages []float64) float64 {
 				break
 			}
 		}
-		print(member.MatchingBonus)
 		totalMatchingBonus += member.MatchingBonus
 	}
 	return totalMatchingBonus
@@ -273,18 +243,18 @@ func convertToJSONStructure(members []*Member) []map[string]interface{} {
 		}
 
 		jsonNodes = append(jsonNodes, map[string]interface{}{
-			"ID":                   member.ID,
-			"Position":             member.Position,
-			"Level":                member.Level,
-			"PackagePrice":         member.PackagePrice,
-			"LeftSales":            member.LeftSales,
-			"RightSales":           member.RightSales,
-			"SponsorBonus":         member.SponsorBonus,
-			"BinaryBonus":          member.BinaryBonus,
-			"MatchingBonus":        member.MatchingBonus,
-			"ParentID":             parentID,
-			"CarryForward":         member.CarryForward,
-			"CarryForwardPosition": member.CarryForwardPosition,
+			"ID":            member.ID,
+			"Position":      member.Position,
+			"Level":         member.Level,
+			"PackagePrice":  member.PackagePrice,
+			"LeftSales":     member.LeftSales,
+			"RightSales":    member.RightSales,
+			"SponsorBonus":  member.SponsorBonus,
+			"BinaryBonus":   member.BinaryBonus,
+			"MatchingBonus": member.MatchingBonus,
+			"ParentID":      parentID,
+			"LeftCarry":     member.LeftCarry,
+			"RightCarry":    member.RightCarry,
 		})
 	}
 	return jsonNodes
@@ -317,13 +287,13 @@ func sendResultsToDjango(results interface{}) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer resp.Body.Close()
 	fmt.Println("Response from Django:", resp.Status)
 }
 
 func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64)) + 1
-	//packagePrice := data["package_price"].(float64)
 	cycles := int(data["cycle"].(float64))
 
 	productsPrice := []float64{}
@@ -341,7 +311,7 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	}
 
 	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
-	binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
+	//binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
 	matchingBonusPercentages := []float64{}
 
 	if rawPercentages, ok := data["percentage_string"].([]interface{}); ok {
@@ -349,7 +319,8 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 			matchingBonusPercentages = append(matchingBonusPercentages, val.(float64))
 		}
 	}
-
+	ratioChoice := data["ratio_choice"].(string)
+	ratioAmount := data["ratio_amount"].(float64)
 	cappingScope := data["capping_scope"].(string)
 	cappingAmount := data["capping_amount"].(float64)
 
@@ -358,7 +329,22 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	tree.Members = append(tree.Members, tree.Root)
 	queue := []*Member{tree.Root}
 
+	leftRatioAmount := 0.0
+	rightRatioAmount := 0.0
+
+	if ratioChoice == "one_one" {
+		leftRatioAmount = ratioAmount * 1
+		rightRatioAmount = ratioAmount * 1
+	} else if ratioChoice == "one_two" {
+		leftRatioAmount = ratioAmount * 1
+		rightRatioAmount = ratioAmount * 2
+	} else if ratioChoice == "two_one" {
+		leftRatioAmount = ratioAmount * 2
+		rightRatioAmount = ratioAmount * 1
+	}
+
 	var sponsorBonus = 0.0
+	var totalBinaryBonus = 0.0
 	for i := 0; i < cycles; i++ {
 		usersPerProduct := []float64{}
 		if rawPercentages, ok := data["users_per_product"].([]interface{}); ok {
@@ -367,10 +353,9 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 			}
 		}
 		queue = tree.buildTree(productsPrice, usersPerProduct, queue)
-		sponsorBonus += tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
+		totalBinaryBonus += tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
 	}
-
-	totalBinaryBonus := tree.setBinaryBonus(binaryBonusPercentage, cappingAmount)
+	sponsorBonus += tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
 	totalMatchingBonus := tree.setMatchingBonus(matchingBonusPercentages)
 
 	return map[string]interface{}{
