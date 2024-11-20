@@ -26,7 +26,6 @@ type Member struct {
 	RightSales    float64
 	LeftCarry     float64
 	RightCarry    float64
-	//CarryForwardPosition string
 }
 
 type Tree struct {
@@ -41,8 +40,6 @@ func NewTree(numMembers int, productsPrice []float64) *Tree {
 		NumMembers:    numMembers,
 		ProductsPrice: productsPrice,
 	}
-
-	//tree.setMemberSales(productsPrice)
 	return tree
 }
 
@@ -54,7 +51,7 @@ func sumSlice(numbers []float64) float64 {
 	return sum
 }
 
-func (t *Tree) buildTree(productsPrice []float64, usersPerProduct []float64, queue []*Member) []*Member {
+func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 	currCount := 0
 	if t.NumMembers <= 0 {
 		return queue
@@ -106,9 +103,10 @@ func (t *Tree) buildTree(productsPrice []float64, usersPerProduct []float64, que
 }
 
 func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, cappingScope string) float64 {
-	var totalBonus float64
+	totalBonus := 0.0
 	for _, member := range t.Members {
-		var rightBonus, leftBonus float64
+		rightBonus := 0.0
+		leftBonus := 0.0
 		if member.RightMember != nil {
 			rightBonus = member.RightMember.PackagePrice * (sponsorPercentage / 100)
 		}
@@ -117,9 +115,9 @@ func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, c
 		}
 		sponsorBonus := rightBonus + leftBonus
 		if cappingAmount > 0 && cappingScope == "3" && sponsorBonus > cappingAmount {
-			member.SponsorBonus += cappingAmount
+			member.SponsorBonus = cappingAmount
 		} else {
-			member.SponsorBonus += sponsorBonus
+			member.SponsorBonus = sponsorBonus
 		}
 		totalBonus += member.SponsorBonus
 	}
@@ -311,7 +309,6 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	}
 
 	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
-	//binaryBonusPercentage := data["binary_bonus_percentage"].(float64)
 	matchingBonusPercentages := []float64{}
 
 	if rawPercentages, ok := data["percentage_string"].([]interface{}); ok {
@@ -345,6 +342,7 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 
 	var sponsorBonus = 0.0
 	var totalBinaryBonus = 0.0
+	var totalMatchingBonus = 0.0
 	for i := 0; i < cycles; i++ {
 		usersPerProduct := []float64{}
 		if rawPercentages, ok := data["users_per_product"].([]interface{}); ok {
@@ -352,11 +350,11 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 				usersPerProduct = append(usersPerProduct, val.(float64))
 			}
 		}
-		queue = tree.buildTree(productsPrice, usersPerProduct, queue)
+		queue = tree.buildTree(usersPerProduct, queue)
+		sponsorBonus = tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
 		totalBinaryBonus += tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
+		totalMatchingBonus += tree.setMatchingBonus(matchingBonusPercentages)
 	}
-	sponsorBonus += tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
-	totalMatchingBonus := tree.setMatchingBonus(matchingBonusPercentages)
 
 	return map[string]interface{}{
 		"tree_structure":       convertToJSONStructure(tree.Members),
