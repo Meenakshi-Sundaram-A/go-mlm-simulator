@@ -147,7 +147,7 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 			member.RightSales = rightSales
 		}
 
-		//fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
+		fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
 
 		pairCount := int(math.Min((leftSales / leftRatioAmount), (rightSales / rightRatioAmount)))
 		fmt.Println("Pair:", pairCount)
@@ -290,7 +290,7 @@ func sendResultsToDjango(results interface{}) {
 	fmt.Println("Response from Django:", resp.Status)
 }
 
-func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
+func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64)) + 1
 	cycles := int(data["cycle"].(float64))
 
@@ -343,6 +343,7 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 	var sponsorBonus = 0.0
 	var totalBinaryBonus = 0.0
 	var totalMatchingBonus = 0.0
+	var results []map[string]interface{}
 	for i := 0; i < cycles; i++ {
 		usersPerProduct := []float64{}
 		if rawPercentages, ok := data["users_per_product"].([]interface{}); ok {
@@ -354,12 +355,17 @@ func ProcessBinaryTree(data map[string]interface{}) map[string]interface{} {
 		sponsorBonus = tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
 		totalBinaryBonus += tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
 		totalMatchingBonus += tree.setMatchingBonus(matchingBonusPercentages)
-	}
 
-	return map[string]interface{}{
-		"tree_structure":       convertToJSONStructure(tree.Members),
-		"total_sponsor_bonus":  sponsorBonus,
-		"total_binary_bonus":   totalBinaryBonus,
-		"total_matching_bonus": totalMatchingBonus,
+		ans := map[string]interface{}{
+			"tree_structure":       convertToJSONStructure(tree.Members),
+			"total_sponsor_bonus":  sponsorBonus,
+			"total_binary_bonus":   totalBinaryBonus,
+			"total_matching_bonus": totalMatchingBonus,
+		}
+		results = append(results, ans)
 	}
+	for i, value := range results {
+		fmt.Print(i, " ", value)
+	}
+	return results
 }
