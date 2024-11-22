@@ -58,6 +58,7 @@ func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 	}
 	totalUsersPerCycle := sumSlice(usersPerProduct)
 	currId := queue[len(queue)-1].ID + 1
+	fmt.Println("Node:", currId)
 
 	for currId <= t.NumMembers && currCount < int(totalUsersPerCycle) {
 		if len(queue) == 0 {
@@ -80,6 +81,8 @@ func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 				}
 			}
 		}
+		fmt.Println("Node:", currId)
+
 		if currId <= t.NumMembers {
 			for index := range usersPerProduct {
 				if usersPerProduct[index] > 0 {
@@ -95,6 +98,7 @@ func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 				}
 			}
 		}
+		fmt.Println("Node:", currId)
 		if flag {
 			queue = queue[1:]
 		}
@@ -147,33 +151,29 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 			member.RightSales = rightSales
 		}
 
-		fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
+		//fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
 
 		pairCount := int(math.Min((leftSales / leftRatioAmount), (rightSales / rightRatioAmount)))
-		fmt.Println("Pair:", pairCount)
 		leftVal := float64(pairCount) * leftRatioAmount
-		fmt.Println("Left Val:", leftVal)
 		rightVal := float64(pairCount) * rightRatioAmount
-		fmt.Println("Right Val:", rightVal)
 		minValue := math.Min(leftVal, rightVal)
-		fmt.Println("Min Val:", minValue)
 
 		if pairCount <= 5 {
-			binaryBonus := minValue * (10.0 / 100)
+			binaryBonus := minValue * (50.0 / 100)
 			if cappingAmount > 0 && binaryBonus > cappingAmount {
 				member.BinaryBonus = cappingAmount
 			} else {
 				member.BinaryBonus = binaryBonus
 			}
 		} else if pairCount > 5 && pairCount <= 10 {
-			binaryBonus := minValue * (15.0 / 100)
+			binaryBonus := minValue * (25.0 / 100)
 			if cappingAmount > 0 && binaryBonus > cappingAmount {
 				member.BinaryBonus = cappingAmount
 			} else {
 				member.BinaryBonus = binaryBonus
 			}
 		} else if pairCount > 10 {
-			binaryBonus := minValue * (20.0 / 100)
+			binaryBonus := minValue * (25.0 / 100)
 			if cappingAmount > 0 && binaryBonus > cappingAmount {
 				member.BinaryBonus = cappingAmount
 			} else {
@@ -183,8 +183,9 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 		member.LeftCarry = leftSales - (float64(pairCount) * leftRatioAmount)
 		member.RightCarry = rightSales - (float64(pairCount) * rightRatioAmount)
 
-		fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
+		//fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
 		totalBonus += member.BinaryBonus
+		fmt.Print("Binary Node ", member.ID)
 	}
 	return totalBonus
 }
@@ -227,6 +228,7 @@ func (t *Tree) setMatchingBonus(levelPercentages []float64) float64 {
 				break
 			}
 		}
+		fmt.Print("Matching Node ", member.ID)
 		totalMatchingBonus += member.MatchingBonus
 	}
 	return totalMatchingBonus
@@ -256,23 +258,6 @@ func convertToJSONStructure(members []*Member) []map[string]interface{} {
 		})
 	}
 	return jsonNodes
-}
-
-func (t *Tree) DisplayTree() {
-	queue := []*Member{t.Root}
-	for len(queue) > 0 {
-		currentMember := queue[0]
-		queue = queue[1:]
-		// fmt.Printf("Member ID: %d, Sponsor Bonus: %.2f, Binary Bonus: %.2f, Matching Bonus: %.2f\n",
-		// 	currentMember.ID, currentMember.SponsorBonus, currentMember.BinaryBonus, currentMember.MatchingBonus)
-
-		if currentMember.LeftMember != nil {
-			queue = append(queue, currentMember.LeftMember)
-		}
-		if currentMember.RightMember != nil {
-			queue = append(queue, currentMember.RightMember)
-		}
-	}
 }
 
 func sendResultsToDjango(results interface{}) {
@@ -364,8 +349,8 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 		}
 		results = append(results, ans)
 	}
-	for i, value := range results {
-		fmt.Print(i, " ", value)
-	}
+	// for i, value := range results {
+	// 	fmt.Print(i, " ", value)
+	// }
 	return results
 }
