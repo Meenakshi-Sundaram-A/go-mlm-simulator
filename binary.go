@@ -58,7 +58,6 @@ func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 	}
 	totalUsersPerCycle := sumSlice(usersPerProduct)
 	currId := queue[len(queue)-1].ID + 1
-	fmt.Println("Node:", currId)
 
 	for currId <= t.NumMembers && currCount < int(totalUsersPerCycle) {
 		if len(queue) == 0 {
@@ -81,7 +80,6 @@ func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 				}
 			}
 		}
-		fmt.Println("Node:", currId)
 
 		if currId <= t.NumMembers {
 			for index := range usersPerProduct {
@@ -98,7 +96,6 @@ func (t *Tree) buildTree(usersPerProduct []float64, queue []*Member) []*Member {
 				}
 			}
 		}
-		fmt.Println("Node:", currId)
 		if flag {
 			queue = queue[1:]
 		}
@@ -129,29 +126,91 @@ func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, c
 }
 
 // Calculate Binary Bonus
+// func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, rightRatioAmount float64) float64 {
+// 	totalBonus := 0.0
+// 	for _, member := range t.Members {
+// 		leftSales := 0.0
+// 		rightSales := 0.0
+// 		if member.LeftMember != nil {
+// 			leftSales = t.traverse(member.LeftMember)
+// 			if member.LeftCarry > 0.0 {
+// 				leftSales += member.LeftCarry
+// 				member.LeftCarry = 0.0
+// 			}
+// 			member.LeftSales = leftSales
+// 		}
+// 		if member.RightMember != nil {
+// 			rightSales = t.traverse(member.RightMember)
+// 			if member.RightCarry > 0.0 {
+// 				rightSales += member.RightCarry
+// 				member.RightCarry = 0.0
+// 			}
+// 			member.RightSales = rightSales
+// 		}
+
+// 		//fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
+
+// 		pairCount := int(math.Min((leftSales / leftRatioAmount), (rightSales / rightRatioAmount)))
+// 		leftVal := float64(pairCount) * leftRatioAmount
+// 		rightVal := float64(pairCount) * rightRatioAmount
+// 		minValue := math.Min(leftVal, rightVal)
+
+// 		if pairCount <= 5 {
+// 			binaryBonus := minValue * (50.0 / 100)
+// 			if cappingAmount > 0 && binaryBonus > cappingAmount {
+// 				member.BinaryBonus = cappingAmount
+// 			} else {
+// 				member.BinaryBonus = binaryBonus
+// 			}
+// 		} else if pairCount > 5 && pairCount <= 10 {
+// 			binaryBonus := minValue * (25.0 / 100)
+// 			if cappingAmount > 0 && binaryBonus > cappingAmount {
+// 				member.BinaryBonus = cappingAmount
+// 			} else {
+// 				member.BinaryBonus = binaryBonus
+// 			}
+// 		} else if pairCount > 10 {
+// 			binaryBonus := minValue * (25.0 / 100)
+// 			if cappingAmount > 0 && binaryBonus > cappingAmount {
+// 				member.BinaryBonus = cappingAmount
+// 			} else {
+// 				member.BinaryBonus = binaryBonus
+// 			}
+// 		}
+// 		member.LeftCarry = leftSales - (float64(pairCount) * leftRatioAmount)
+// 		member.RightCarry = rightSales - (float64(pairCount) * rightRatioAmount)
+
+// 		//fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
+// 		totalBonus += member.BinaryBonus
+// 	}
+// 	return totalBonus
+// }
+
 func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, rightRatioAmount float64) float64 {
 	totalBonus := 0.0
+	cache := make(map[*Member]float64) // Create cache map
+
 	for _, member := range t.Members {
 		leftSales := 0.0
 		rightSales := 0.0
+
 		if member.LeftMember != nil {
-			leftSales = t.traverse(member.LeftMember)
+			leftSales = t.traverse(member.LeftMember, cache)
 			if member.LeftCarry > 0.0 {
 				leftSales += member.LeftCarry
 				member.LeftCarry = 0.0
 			}
 			member.LeftSales = leftSales
 		}
+
 		if member.RightMember != nil {
-			rightSales = t.traverse(member.RightMember)
+			rightSales = t.traverse(member.RightMember, cache)
 			if member.RightCarry > 0.0 {
 				rightSales += member.RightCarry
 				member.RightCarry = 0.0
 			}
 			member.RightSales = rightSales
 		}
-
-		//fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
 
 		pairCount := int(math.Min((leftSales / leftRatioAmount), (rightSales / rightRatioAmount)))
 		leftVal := float64(pairCount) * leftRatioAmount
@@ -174,9 +233,9 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 			}
 		} else if pairCount > 10 {
 			binaryBonus := minValue * (25.0 / 100)
-			if cappingAmount > 0 && binaryBonus > cappingAmount {
-				member.BinaryBonus = cappingAmount
-			} else {
+			if cappingAmount > 0 && binaryBonus > cappingAmount{
+				member.BinaryBonus = cappingAmount 
+			} else {																																																																																																																																																																																																																																																																																																																								
 				member.BinaryBonus = binaryBonus
 			}
 		}
@@ -184,23 +243,50 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 		member.RightCarry = rightSales - (float64(pairCount) * rightRatioAmount)
 
 		//fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
+		// totalBonus += member.BinaryBonus
+
 		totalBonus += member.BinaryBonus
-		fmt.Print("Binary Node ", member.ID)
 	}
+
 	return totalBonus
 }
 
-func (t *Tree) traverse(node *Member) float64 {
+
+func (t *Tree) traverse(node *Member, cache map[*Member]float64) float64 {
 	if node == nil {
 		return 0
 	}
 
-	currentSales := node.PackagePrice
+	// Check if the result for this node is already computed
+	if val, exists := cache[node]; exists {
+		return val
+	}
 
-	leftSales := t.traverse(node.LeftMember)
-	rightSales := t.traverse(node.RightMember)
-	return currentSales + leftSales + rightSales
+	// Calculate the current sales recursively
+	currentSales := node.PackagePrice
+	leftSales := t.traverse(node.LeftMember, cache)
+	rightSales := t.traverse(node.RightMember, cache)
+
+	totalSales := currentSales + leftSales + rightSales
+
+	// Store the result in the cache
+	cache[node] = totalSales
+
+	return totalSales
 }
+
+
+// func (t *Tree) traverse(node *Member) float64 {
+// 	if node == nil {
+// 		return 0
+// 	}
+
+// 	currentSales := node.PackagePrice
+
+// 	leftSales := t.traverse(node.LeftMember)
+// 	rightSales := t.traverse(node.RightMember)
+// 	return currentSales + leftSales + rightSales
+// }
 
 func (t *Tree) setMatchingBonus(levelPercentages []float64) float64 {
 	totalMatchingBonus := 0.0
@@ -228,7 +314,6 @@ func (t *Tree) setMatchingBonus(levelPercentages []float64) float64 {
 				break
 			}
 		}
-		fmt.Print("Matching Node ", member.ID)
 		totalMatchingBonus += member.MatchingBonus
 	}
 	return totalMatchingBonus
@@ -338,8 +423,8 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 		}
 		queue = tree.buildTree(usersPerProduct, queue)
 		sponsorBonus = tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
-		totalBinaryBonus += tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
-		totalMatchingBonus += tree.setMatchingBonus(matchingBonusPercentages)
+		totalBinaryBonus = tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
+		totalMatchingBonus = tree.setMatchingBonus(matchingBonusPercentages)
 
 		ans := map[string]interface{}{
 			"tree_structure":       convertToJSONStructure(tree.Members),
@@ -352,5 +437,6 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 	// for i, value := range results {
 	// 	fmt.Print(i, " ", value)
 	// }
+	fmt.Println("Data Sending to Django")
 	return results
 }
