@@ -233,9 +233,9 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 			}
 		} else if pairCount > 10 {
 			binaryBonus := minValue * (25.0 / 100)
-			if cappingAmount > 0 && binaryBonus > cappingAmount{
-				member.BinaryBonus = cappingAmount 
-			} else {																																																																																																																																																																																																																																																																																																																								
+			if cappingAmount > 0 && binaryBonus > cappingAmount {
+				member.BinaryBonus = cappingAmount
+			} else {
 				member.BinaryBonus = binaryBonus
 			}
 		}
@@ -250,7 +250,6 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 
 	return totalBonus
 }
-
 
 func (t *Tree) traverse(node *Member, cache map[*Member]float64) float64 {
 	if node == nil {
@@ -274,7 +273,6 @@ func (t *Tree) traverse(node *Member, cache map[*Member]float64) float64 {
 
 	return totalSales
 }
-
 
 // func (t *Tree) traverse(node *Member) float64 {
 // 	if node == nil {
@@ -425,6 +423,7 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 		sponsorBonus = tree.setAndGetSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
 		totalBinaryBonus = tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
 		totalMatchingBonus = tree.setMatchingBonus(matchingBonusPercentages)
+		// treeStructure := convertToJSONStructure(tree.Members)
 
 		ans := map[string]interface{}{
 			"tree_structure":       convertToJSONStructure(tree.Members),
