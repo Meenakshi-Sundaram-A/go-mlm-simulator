@@ -218,21 +218,21 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 		minValue := math.Min(leftVal, rightVal)
 
 		if pairCount <= 5 {
-			binaryBonus := minValue * (50.0 / 100)
+			binaryBonus := minValue * (10.0 / 100)
 			if cappingAmount > 0 && binaryBonus > cappingAmount {
 				member.BinaryBonus = cappingAmount
 			} else {
 				member.BinaryBonus = binaryBonus
 			}
 		} else if pairCount > 5 && pairCount <= 10 {
-			binaryBonus := minValue * (25.0 / 100)
+			binaryBonus := minValue * (15.0 / 100)
 			if cappingAmount > 0 && binaryBonus > cappingAmount {
 				member.BinaryBonus = cappingAmount
 			} else {
 				member.BinaryBonus = binaryBonus
 			}
 		} else if pairCount > 10 {
-			binaryBonus := minValue * (25.0 / 100)
+			binaryBonus := minValue * (20.0 / 100)
 			if cappingAmount > 0 && binaryBonus > cappingAmount {
 				member.BinaryBonus = cappingAmount
 			} else {
