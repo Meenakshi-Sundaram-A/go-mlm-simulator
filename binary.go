@@ -317,6 +317,22 @@ func (t *Tree) setMatchingBonus(levelPercentages []float64) float64 {
 	return totalMatchingBonus
 }
 
+func convertToJSONStructureForAdmin(members []*Member) []map[string]interface{} {
+	var jsonNodes []map[string]interface{}
+	for _, member := range members {
+		if member.ID == 1 {
+			jsonNodes = append(jsonNodes, map[string]interface{}{
+				"ID":            member.ID,
+				"SponsorBonus":  member.SponsorBonus,
+				"BinaryBonus":   member.BinaryBonus,
+				"MatchingBonus": member.MatchingBonus,
+			})
+			break
+		}
+	}
+	return jsonNodes
+}
+
 func convertToJSONStructure(members []*Member) []map[string]interface{} {
 	var jsonNodes []map[string]interface{}
 	for _, member := range members {
@@ -424,19 +440,28 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 		totalBinaryBonus = tree.setBinaryBonus(cappingAmount, leftRatioAmount, rightRatioAmount)
 		totalMatchingBonus = tree.setMatchingBonus(matchingBonusPercentages)
 		// treeStructure := convertToJSONStructure(tree.Members)
+		adminList := convertToJSONStructureForAdmin(tree.Members)
+
+		for _, node := range adminList {
+
+			fmt.Printf("  Node ID: 1\n")
+			fmt.Printf("    BinaryBonus: %v\n", node["BinaryBonus"])
+			fmt.Printf("    SponsorBonus: %v\n", node["SponsorBonus"])
+			fmt.Printf("    MatchingBonus: %v\n", node["MatchingBonus"])
+
+		}
 
 		ans := map[string]interface{}{
-			"tree_structure":       convertToJSONStructure(tree.Members),
+			// "tree_structure": convertToJSONStructure(tree.Members),
+			"tree_structure":       adminList,
 			"total_sponsor_bonus":  sponsorBonus,
 			"total_binary_bonus":   totalBinaryBonus,
 			"total_matching_bonus": totalMatchingBonus,
 		}
 
-		// Access the tree structure
-		treeStructure := ans["tree_structure"].([]map[string]interface{})
+		// treeStructure := ans["tree_structure"].([]map[string]interface{})
 
-		// Find Node ID 1
-		for _, node := range treeStructure {
+		for _, node := range adminList {
 			if node["ID"] == 1 {
 				fmt.Printf("  Node ID: 1\n")
 				fmt.Printf("    BinaryBonus: %v\n", node["BinaryBonus"])
