@@ -431,6 +431,21 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 			"total_binary_bonus":   totalBinaryBonus,
 			"total_matching_bonus": totalMatchingBonus,
 		}
+
+		// Access the tree structure
+		treeStructure := ans["tree_structure"].([]map[string]interface{})
+
+		// Find Node ID 1
+		for _, node := range treeStructure {
+			if node["ID"] == 1 {
+				fmt.Printf("  Node ID: 1\n")
+				fmt.Printf("    BinaryBonus: %v\n", node["BinaryBonus"])
+				fmt.Printf("    SponsorBonus: %v\n", node["SponsorBonus"])
+				fmt.Printf("    MatchingBonus: %v\n", node["MatchingBonus"])
+				break
+			}
+		}
+
 		results = append(results, ans)
 	}
 	// for i, value := range results {
