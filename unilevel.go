@@ -113,8 +113,15 @@ func (t *UniLevelTree) buildUniLevelTree(maxChild int, usersPerProduct []float64
 //		return queue
 //	}
 
-func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAmount float64) float64 {
+func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAmount float64, cappingScope []string) float64 {
 	var totalSponsorBonus float64
+
+	flag := false
+	for _, item := range cappingScope {
+		if item == "sponsor_bonus" {
+			flag = true
+		}
+	}
 
 	for _, member := range t.Members {
 		sponsorBonus := 0.0
@@ -122,7 +129,7 @@ func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAm
 			for _, child := range member.Children {
 				sponsorBonus += child.PackagePrice * (sponsorPercentage / 100)
 			}
-			if cappingAmount > 0 && sponsorBonus > cappingAmount {
+			if flag && cappingAmount > 0 && sponsorBonus > cappingAmount {
 				member.SponsorBonus = cappingAmount
 			} else {
 				member.SponsorBonus = sponsorBonus
@@ -133,8 +140,15 @@ func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAm
 	return totalSponsorBonus
 }
 
-func (t *UniLevelTree) unilevelMatchingBonus(levelPercentages []float64) float64 {
+func (t *UniLevelTree) unilevelMatchingBonus(levelPercentages []float64, cappingAmount float64, cappingScope []string) float64 {
 	totalMatchingBonus := 0.0
+
+	flag := false
+	for _, item := range cappingScope {
+		if item == "sponsor_bonus" {
+			flag = true
+		}
+	}
 
 	for _, member := range t.Members {
 		queue := []*UniMember{member}
@@ -146,6 +160,9 @@ func (t *UniLevelTree) unilevelMatchingBonus(levelPercentages []float64) float64
 				for _, child := range node.Children {
 					nextLevelNodes = append(nextLevelNodes, child)
 					member.MatchingBonus += child.SponsorBonus * (level / 100)
+					if flag && cappingAmount > 0 && member.MatchingBonus > cappingAmount {
+						member.MatchingBonus = cappingAmount
+					}
 				}
 			}
 			queue = nextLevelNodes
@@ -217,6 +234,16 @@ func ProcessUnilevelTree(data map[string]interface{}) []map[string]interface{} {
 	}
 
 	maxChild := int(data["max_child"].(float64))
+
+	rawCappingScope := data["capping_scope"].([]interface{})
+	cappingScope := make([]string, len(rawCappingScope))
+	for i, v := range rawCappingScope {
+		// Assert each element as a string
+		if str, ok := v.(string); ok {
+			cappingScope[i] = str
+		}
+	}
+
 	cappingAmount := data["capping_amount"].(float64)
 
 	tree := NewUniLevelTree(numOfUsers, productsPrice, int(maxChild))
@@ -235,8 +262,8 @@ func ProcessUnilevelTree(data map[string]interface{}) []map[string]interface{} {
 			}
 		}
 		queue = tree.buildUniLevelTree(int(maxChild), usersPerProduct, queue)
-		sponsorBonus = tree.unilevelSponsorBonus(sponsorBonusPercentage, cappingAmount)
-		totalMatchingBonus += tree.unilevelMatchingBonus(matchingBonusPercentages)
+		sponsorBonus = tree.unilevelSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
+		totalMatchingBonus += tree.unilevelMatchingBonus(matchingBonusPercentages, cappingAmount, cappingScope)
 
 		ans := map[string]interface{}{
 			"tree_structure":       convertToUniLevelJSONStructure(tree.Members),
