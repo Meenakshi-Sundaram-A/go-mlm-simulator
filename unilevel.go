@@ -1,9 +1,5 @@
 package main
 
-import (
-	"fmt"
-)
-
 type UniMember struct {
 	ID            int
 	Parent        *UniMember
@@ -113,8 +109,9 @@ func (t *UniLevelTree) buildUniLevelTree(maxChild int, usersPerProduct []float64
 //		return queue
 //	}
 
-func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAmount float64, cappingScope []string) float64 {
+func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAmount float64, cappingScope []string) (float64, float64) {
 	var totalSponsorBonus float64
+	var revenue float64
 
 	flag := false
 	for _, item := range cappingScope {
@@ -128,6 +125,8 @@ func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAm
 		if len(member.Children) != 0 {
 			for _, child := range member.Children {
 				sponsorBonus += child.PackagePrice * (sponsorPercentage / 100)
+				revenue += child.PackagePrice
+
 			}
 			if flag && cappingAmount > 0 && sponsorBonus > cappingAmount {
 				member.SponsorBonus = cappingAmount
@@ -137,7 +136,7 @@ func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAm
 		}
 		totalSponsorBonus += member.SponsorBonus
 	}
-	return totalSponsorBonus
+	return totalSponsorBonus, revenue
 }
 
 func (t *UniLevelTree) unilevelMatchingBonus(levelPercentages []float64, cappingAmount float64, cappingScope []string) float64 {
@@ -186,6 +185,21 @@ func (t *UniLevelTree) unilevelMatchingBonus(levelPercentages []float64, capping
 // 	fmt.Println("Response from Django:", resp.Status)
 // }
 
+func convertToUniLevelJSONStructureForAdmin(members []*UniMember) []map[string]interface{} {
+	var jsonNodes []map[string]interface{}
+	for _, member := range members {
+		if member.ID == 1 {
+			jsonNodes = append(jsonNodes, map[string]interface{}{
+				"ID":            member.ID,
+				"SponsorBonus":  member.SponsorBonus,
+				"MatchingBonus": member.MatchingBonus,
+			})
+			break
+		}
+	}
+	return jsonNodes
+}
+
 func convertToUniLevelJSONStructure(members []*UniMember) []map[string]interface{} {
 	var jsonNodes []map[string]interface{}
 	for _, member := range members {
@@ -211,6 +225,8 @@ func ProcessUnilevelTree(data map[string]interface{}) []map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64)) + 1
 	cycles := int(data["cycle"].(float64))
 	sponsorBonusPercentage := data["sponsor_bonus_percentage"].(float64)
+	poolBonusPercentage := data["pool_bonus_percentage"].(float64)
+	poolBonusCount := data["pool_bonus_count"].(float64)
 
 	matchingBonusPercentages := []float64{}
 	if rawPercentages, ok := data["percentage_string"].([]interface{}); ok {
@@ -251,8 +267,12 @@ func ProcessUnilevelTree(data map[string]interface{}) []map[string]interface{} {
 	tree.Members = append(tree.Members, tree.Root)
 	queue := []*UniMember{tree.Root}
 
-	var sponsorBonus = 0.0
+	var totalSponsorBonus = 0.0
 	var totalMatchingBonus = 0.0
+	var revenue = 0.0
+	var expense = 0.0
+	var profit = 0.0
+	var poolBonus = 0.0
 	var results []map[string]interface{}
 	for i := 0; i < cycles; i++ {
 		usersPerProduct := []float64{}
@@ -262,19 +282,39 @@ func ProcessUnilevelTree(data map[string]interface{}) []map[string]interface{} {
 			}
 		}
 		queue = tree.buildUniLevelTree(int(maxChild), usersPerProduct, queue)
-		sponsorBonus = tree.unilevelSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
-		totalMatchingBonus += tree.unilevelMatchingBonus(matchingBonusPercentages, cappingAmount, cappingScope)
+		totalSponsorBonus, revenue = tree.unilevelSponsorBonus(sponsorBonusPercentage, cappingAmount, cappingScope)
+		totalMatchingBonus = tree.unilevelMatchingBonus(matchingBonusPercentages, cappingAmount, cappingScope)
+
+		adminList := convertToUniLevelJSONStructureForAdmin(tree.Members)
+		adminMatchingBonus := adminList[0]["MatchingBonus"].(float64)
+		adminSponsorBonus := adminList[0]["SponsorBonus"].(float64)
+
+		totalMatchingBonus = totalMatchingBonus - adminMatchingBonus
+		totalSponsorBonus = totalSponsorBonus - adminSponsorBonus
+
+		expense = totalSponsorBonus + totalMatchingBonus
+		// fmt.Println("Expense:", expense)
+		profit = revenue - expense
+		if poolBonusPercentage > 0 && poolBonusCount > 0 {
+			poolBonus = profit * (poolBonusPercentage / 100)
+			profit = profit - poolBonus
+			expense += poolBonus
+		}
 
 		ans := map[string]interface{}{
-			"tree_structure":       convertToUniLevelJSONStructure(tree.Members),
-			"total_sponsor_bonus":  sponsorBonus,
+			// "tree_structure":       convertToUniLevelJSONStructure(tree.Members),
+			"revenue":              revenue,
+			"expense":              expense,
+			"profit":               profit,
+			"pool_bonus":           poolBonus,
+			"total_sponsor_bonus":  totalSponsorBonus,
 			"total_matching_bonus": totalMatchingBonus,
 		}
 		results = append(results, ans)
 	}
-	for i, value := range results {
-		fmt.Print(i, " ", value)
-	}
+	// for i, value := range results {
+	// 	fmt.Print(i, " ", value)
+	// }
 	return results
 
 	// tree := NewUniLevelTree(int(numOfUsers), packagePrice, int(maxChild))
