@@ -81,33 +81,6 @@ func (t *UniLevelTree) buildUniLevelTree(maxChild int, usersPerProduct []float64
 	return queue
 }
 
-// func (t *UniLevelTree) buildUniLevelTree(maxChild int, usersPerProduct []float64, queue []*UniMember) []*UniMember {
-// 	currCount := 0
-// 	if t.NumMembers <= 0 {
-// 		return queue
-// 	}
-
-// 	totalUsersPerCycle := sumUsers(usersPerProduct)
-// 	currentID :=  queue[len(queue)-1].ID + 1
-
-//		for currentID <= t.NumMembers && currCount < int(totalUsersPerCycle) {
-//			currentMember := queue[0]
-//			flag := false
-//			if len(currentMember.Children) != maxChild {
-//				newChild := &UniMember{ID: currentID, Parent: currentMember, Level: currentMember.Level + 1}
-//				currentMember.Children = append(currentMember.Children, newChild)
-//				queue = append(queue, newChild)
-//				t.Members = append(t.Members, newChild)
-//				currentID++
-//			} else {
-//				flag = true
-//			}
-//			if flag {
-//				queue = queue[1:]
-//			}
-//		}
-//		return queue
-//	}
 
 func (t *UniLevelTree) unilevelSponsorBonus(sponsorPercentage float64, cappingAmount float64, cappingScope []string) (float64, float64) {
 	var totalSponsorBonus float64

@@ -2,12 +2,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"log"
 	"math"
-	"net/http"
 )
 
 type Member struct {
@@ -111,7 +107,6 @@ func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, c
 			flag = true
 		}
 	}
-	// fmt.Println("Idhu for flag:", flag)
 	for _, member := range t.Members {
 		rightBonus := 0.0
 		leftBonus := 0.0
@@ -131,67 +126,6 @@ func (t *Tree) setAndGetSponsorBonus(sponsorPercentage, cappingAmount float64, c
 	}
 	return totalBonus
 }
-
-// Calculate Binary Bonus
-// func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, rightRatioAmount float64) float64 {
-// 	totalBonus := 0.0
-// 	for _, member := range t.Members {
-// 		leftSales := 0.0
-// 		rightSales := 0.0
-// 		if member.LeftMember != nil {
-// 			leftSales = t.traverse(member.LeftMember)
-// 			if member.LeftCarry > 0.0 {
-// 				leftSales += member.LeftCarry
-// 				member.LeftCarry = 0.0
-// 			}
-// 			member.LeftSales = leftSales
-// 		}
-// 		if member.RightMember != nil {
-// 			rightSales = t.traverse(member.RightMember)
-// 			if member.RightCarry > 0.0 {
-// 				rightSales += member.RightCarry
-// 				member.RightCarry = 0.0
-// 			}
-// 			member.RightSales = rightSales
-// 		}
-
-// 		//fmt.Println("Node:", member.ID, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales)
-
-// 		pairCount := int(math.Min((leftSales / leftRatioAmount), (rightSales / rightRatioAmount)))
-// 		leftVal := float64(pairCount) * leftRatioAmount
-// 		rightVal := float64(pairCount) * rightRatioAmount
-// 		minValue := math.Min(leftVal, rightVal)
-
-// 		if pairCount <= 5 {
-// 			binaryBonus := minValue * (50.0 / 100)
-// 			if cappingAmount > 0 && binaryBonus > cappingAmount {
-// 				member.BinaryBonus = cappingAmount
-// 			} else {
-// 				member.BinaryBonus = binaryBonus
-// 			}
-// 		} else if pairCount > 5 && pairCount <= 10 {
-// 			binaryBonus := minValue * (25.0 / 100)
-// 			if cappingAmount > 0 && binaryBonus > cappingAmount {
-// 				member.BinaryBonus = cappingAmount
-// 			} else {
-// 				member.BinaryBonus = binaryBonus
-// 			}
-// 		} else if pairCount > 10 {
-// 			binaryBonus := minValue * (25.0 / 100)
-// 			if cappingAmount > 0 && binaryBonus > cappingAmount {
-// 				member.BinaryBonus = cappingAmount
-// 			} else {
-// 				member.BinaryBonus = binaryBonus
-// 			}
-// 		}
-// 		member.LeftCarry = leftSales - (float64(pairCount) * leftRatioAmount)
-// 		member.RightCarry = rightSales - (float64(pairCount) * rightRatioAmount)
-
-// 		//fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
-// 		totalBonus += member.BinaryBonus
-// 	}
-// 	return totalBonus
-// }
 
 func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, rightRatioAmount float64, cappingScope []string, binaryBonusPercentage float64) (float64, float64) {
 	totalBonus := 0.0
@@ -274,9 +208,6 @@ func (t *Tree) setBinaryBonus(cappingAmount float64, leftRatioAmount float64, ri
 			member.RightCarry = rightSales - (float64(pairCount) * rightRatioAmount)
 		}
 
-		//fmt.Println("Node:", member.ID, "Binary:", member.BinaryBonus, "Left Sale:", member.LeftSales, "Right Sale:", member.RightSales, "Left Carry:", member.LeftCarry, "Right Carry:", member.RightCarry)
-		// totalBonus += member.BinaryBonus
-
 		totalBonus += member.BinaryBonus
 	}
 	return totalBonus, revenue
@@ -301,18 +232,6 @@ func (t *Tree) traverse(node *Member, cache map[*Member]float64) float64 {
 
 	return totalSales
 }
-
-// func (t *Tree) traverse(node *Member) float64 {
-// 	if node == nil {
-// 		return 0
-// 	}
-
-// 	currentSales := node.PackagePrice
-
-// 	leftSales := t.traverse(node.LeftMember)
-// 	rightSales := t.traverse(node.RightMember)
-// 	return currentSales + leftSales + rightSales
-// }
 
 func (t *Tree) setMatchingBonus(levelPercentages []float64, cappingScope []string, cappingAmount float64) float64 {
 	totalMatchingBonus := 0.0
@@ -373,46 +292,46 @@ func convertToJSONStructureForAdmin(members []*Member) []map[string]interface{} 
 	return jsonNodes
 }
 
-func convertToJSONStructure(members []*Member) []map[string]interface{} {
-	var jsonNodes []map[string]interface{}
-	for _, member := range members {
-		parentID := 0
-		if member.Parent != nil {
-			parentID = member.Parent.ID
-		}
+// func convertToJSONStructure(members []*Member) []map[string]interface{} {
+// 	var jsonNodes []map[string]interface{}
+// 	for _, member := range members {
+// 		parentID := 0
+// 		if member.Parent != nil {
+// 			parentID = member.Parent.ID
+// 		}
 
-		jsonNodes = append(jsonNodes, map[string]interface{}{
-			"ID":            member.ID,
-			"Position":      member.Position,
-			"Level":         member.Level,
-			"PackagePrice":  member.PackagePrice,
-			"LeftSales":     member.LeftSales,
-			"RightSales":    member.RightSales,
-			"SponsorBonus":  member.SponsorBonus,
-			"BinaryBonus":   member.BinaryBonus,
-			"MatchingBonus": member.MatchingBonus,
-			"ParentID":      parentID,
-			"LeftCarry":     member.LeftCarry,
-			"RightCarry":    member.RightCarry,
-		})
-	}
-	return jsonNodes
-}
+// 		jsonNodes = append(jsonNodes, map[string]interface{}{
+// 			"ID":            member.ID,
+// 			"Position":      member.Position,
+// 			"Level":         member.Level,
+// 			"PackagePrice":  member.PackagePrice,
+// 			"LeftSales":     member.LeftSales,
+// 			"RightSales":    member.RightSales,
+// 			"SponsorBonus":  member.SponsorBonus,
+// 			"BinaryBonus":   member.BinaryBonus,
+// 			"MatchingBonus": member.MatchingBonus,
+// 			"ParentID":      parentID,
+// 			"LeftCarry":     member.LeftCarry,
+// 			"RightCarry":    member.RightCarry,
+// 		})
+// 	}
+// 	return jsonNodes
+// }
 
-func sendResultsToDjango(results interface{}) {
-	jsonData, err := json.Marshal(results)
-	if err != nil {
-		log.Fatal(err)
-	}
+// func sendResultsToDjango(results interface{}) {
+// 	jsonData, err := json.Marshal(results)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	resp, err := http.Post("http://localhost:8000/prorevenue := 0.0cess_results/", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	resp, err := http.Post("http://localhost:8000/prorevenue := 0.0cess_results/", "application/json", bytes.NewBuffer(jsonData))
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	defer resp.Body.Close()
-	fmt.Println("Response from Django:", resp.Status)
-}
+// 	defer resp.Body.Close()
+// 	fmt.Println("Response from Django:", resp.Status)
+// }
 
 func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 	numOfUsers := int(data["num_of_users"].(float64)) + 1
@@ -447,7 +366,6 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 	rawCappingScope := data["capping_scope"].([]interface{})
 	cappingScope := make([]string, len(rawCappingScope))
 	for i, v := range rawCappingScope {
-		// Assert each element as a string
 		if str, ok := v.(string); ok {
 			cappingScope[i] = str
 		}
@@ -455,9 +373,7 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 
 	ratioChoice := data["ratio_choice"].(string)
 	ratioAmount := data["ratio_amount"].(float64)
-	// fmt.Println("Hello")
-	// cappingScope := data["capping_scope"].([]string)
-	fmt.Println("CAPPING SCOPE:", cappingScope)
+
 	cappingAmount := data["capping_amount"].(float64)
 
 	tree := NewTree(numOfUsers, productsPrice)
@@ -467,8 +383,6 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 
 	leftRatioAmount := 0.0
 	rightRatioAmount := 0.0
-
-	fmt.Println("sfegbsrtb", binaryBonusPercentage)
 
 	if binaryBonusPercentage == 0.0 {
 		if ratioChoice == "one_one" {
@@ -482,8 +396,6 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 			rightRatioAmount = ratioAmount * 1
 		}
 	}
-	// fmt.Println("Left val:", leftRatioAmount)
-	// fmt.Println("Right val:", rightRatioAmount)
 
 	var totalSponsorBonus = 0.0
 	var totalBinaryBonus = 0.0
@@ -514,9 +426,6 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 		totalMatchingBonus = totalMatchingBonus - adminMatchingBonus
 		totalSponsorBonus = totalSponsorBonus - adminSponsorBonus
 
-		// fmt.Println("Binary:", totalBinaryBonus)
-		// fmt.Println("Match:", totalMatchingBonus)
-		// fmt.Println("Sponsor:", totalSponsorBonus)
 		expense = totalBinaryBonus + totalSponsorBonus + totalMatchingBonus
 		// fmt.Println("Expense:", expense)
 		profit = revenue - expense
@@ -525,16 +434,6 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 			profit = profit - poolBonus
 			expense += poolBonus
 		}
-
-		// for _, node := range adminList {
-
-		// 	fmt.Printf("  Node ID: 1\n")
-		// 	fmt.Printf("    BinaryBonus: %v\n", node["BinaryBonus"])
-		// 	fmt.Printf("    SponsorBonus: %v\n", node["SponsorBonus"])
-		// 	fmt.Printf("    MatchingBonus: %v\n", node["MatchingBonus"])
-
-		// }
-		// fmt.Println("Cycle Done ! ")
 
 		ans := map[string]interface{}{
 			// "tree_structure": convertToJSONStructure(tree.Members),
@@ -547,24 +446,8 @@ func ProcessBinaryTree(data map[string]interface{}) []map[string]interface{} {
 			"total_binary_bonus":   totalBinaryBonus,
 			"total_matching_bonus": totalMatchingBonus,
 		}
-
-		// treeStructure := ans["tree_structure"].([]map[string]interface{})
-
-		// for _, node := range adminList {
-		// 	if node["ID"] == 1 {
-		// 		fmt.Printf("  Node ID: 1\n")
-		// 		fmt.Printf("    BinaryBonus: %v\n", node["BinaryBonus"])
-		// 		fmt.Printf("    SponsorBonus: %v\n", node["SponsorBonus"])
-		// 		fmt.Printf("    MatchingBonus: %v\n", node["MatchingBonus"])
-		// 		break
-		// 	}
-		// }
-
 		results = append(results, ans)
 	}
-	// for i, value := range results {
-	// 	fmt.Print(i, " ", value)
-	// }
 	fmt.Println("Data Sending to Django")
 	return results
 }
